@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import gradio as gr
-from huggingface_hub import InferenceClient
+from huggingface_hub import InferenceClient, get_token
 
 # Hugging Face model for text-to-Mermaid conversion
 # Using Qwen - good at following instructions and generating structured output
@@ -57,7 +57,8 @@ def text_to_mermaid(system_idea: str, api_token: str | None) -> tuple[str, str]:
     if not system_idea or not system_idea.strip():
         return "", "Please enter a system idea or description."
 
-    token = api_token or os.environ.get("HF_API_KEY") or os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+    # Use priority: textbox input > HF_TOKEN variable > HF_API_KEY variable > get_token() utility
+    token = api_token or os.environ.get("HF_TOKEN") or os.environ.get("HF_API_KEY") or get_token()
     if not token:
         return "", (
             "⚠️ Hugging Face API token required. "
@@ -235,4 +236,11 @@ with gr.Blocks(
     )
 
 if __name__ == "__main__":
+    # Diagnostic: Check if a token is available at startup (visible in Spaces logs)
+    token_check = os.environ.get("HF_TOKEN") or os.environ.get("HF_API_KEY") or get_token()
+    if token_check:
+        print("✅ Hugging Face token detected correctly.")
+    else:
+        print("⚠️ No Hugging Face token found in environment. User input will be required.")
+        
     demo.launch()
