@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Idea to FlowChart</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+      background: #f8fafc;
+      color: #1e293b;
+      line-height: 1.5;
+    }
+    h1 {
+      color: #4f46e5;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      color: #64748b;
+      margin-bottom: 1.5rem;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    .form-group { margin-bottom: 1rem; }
+    button {
+      background: #4f46e5;
+      color: white;
+      border: none;
+      padding: 0.6rem 1.25rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: #4338ca; }
+    button:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+    .error {
+      background: #fef2f2;
+      color: #b91c1c;
+      padding: 0.75rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+    #diagram, #diagramCode {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 1rem;
+      min-height: 120px;
+    }
+    #diagramCode { margin-top: 0.5rem; }
+    #diagram .mermaid { display: flex; justify-content: center; }
+    #diagram svg { max-width: 100%; }
+    .diagram-output {
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+      white-space: pre;
+      overflow-x: auto;
+      margin: 0;
+    }
+    .section-label {
+      font-weight: 600;
+      color: #64748b;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+    .examples {
+      font-size: 0.9rem;
+      color: #64748b;
+      margin-top: 0.5rem;
+    }
+    .examples span {
+      display: inline-block;
+      background: #e0e7ff;
+      color: #4338ca;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      margin: 0.2rem 0.2rem 0.2rem 0;
+      cursor: pointer;
+    }
+    .examples span:hover { background: #c7d2fe; }
+  </style>
+</head>
+<body>
+  <h1>Idea to FlowChart</h1>
+  <p class="subtitle">Describe your idea → AI generates flowchart + ASCII diagram code</p>
+
+  <form id="form">
+    <div class="form-group">
+      <label for="idea">Describe your system or idea</label>
+      <textarea id="idea" placeholder="Kindly enter your idea, e.g. 'Shall I generate a diagram how to create an app?'">Kindly enter your idea, e.g. Shall I generate a diagram how to create an app?</textarea>
+      <div class="examples">
+        Try: <span data-idea="How to test internet speed">Test internet speed</span>
+        <span data-idea="How to test your microphone">Test your mic</span>
+        <span data-idea="Shall I generate a diagram how to create an app">How to create app</span>
+        <span data-idea="Steps to check webcam">Test webcam</span>
+        <span data-idea="How to troubleshoot WiFi connection">Troubleshoot WiFi</span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="token">Hugging Face API Token</label>
+      <input type="password" id="token" placeholder="hf_xxxx (get one at huggingface.co/settings/tokens)">
+    </div>
+    <button type="submit" id="btn">Generate Diagram</button>
+  </form>
+
+  <div id="error" class="error" style="display:none"></div>
+
+  <div class="section-label">Diagram (Flowchart / Architecture)</div>
+  <div id="diagram">
+    <p style="color:#94a3b8">Flowchart or architecture will appear here.</p>
+  </div>
+
+  <div class="section-label">Generated diagram code (ASCII)</div>
+  <div id="diagramCode">
+    <p style="color:#94a3b8">Generated diagram code (ASCII) will appear here.</p>
+  </div>
+
+  <script>
+    mermaid.initialize({ startOnLoad: false, theme: 'default' });
+
+    const MERMAID_PROMPT = `You are an expert at creating Mermaid.js flowcharts. Output ONLY valid Mermaid code.
+Rules: Use flowchart TD or flowchart LR. Use [Text], --> for arrows. No markdown blocks, no explanations. Start with "flowchart" or "graph".`;
+
+    const ASCII_PROMPT = `You are an expert at ASCII art flowcharts. Output ONLY the ASCII diagram.
+Rules: Use + - | for boxes, arrows. No markdown, no explanations. Start directly with the diagram.`;
+
+    document.querySelectorAll('.examples span').forEach(el => {
+      el.addEventListener('click', () => {
+        document.getElementById('idea').value = el.dataset.idea;
+      });
+    });
+
+    function extractCode(text) {
+      text = text.trim();
+      text = text.replace(/```\w*\s*/gi, '');
+      text = text.replace(/```\s*/g, '');
+      return text.trim();
+    }
+
+    async function callAPI(token, prompt, systemPrompt) {
+      const res = await fetch('https://router.huggingface.co/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'Qwen/Qwen2.5-7B-Instruct',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt }
+          ],
+          max_tokens: 1024,
+          temperature: 0.3
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || data.detail || JSON.stringify(data));
+      return data.choices?.[0]?.message?.content || '';
+    }
+
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const idea = document.getElementById('idea').value.trim();
+      const token = document.getElementById('token').value.trim();
+
+      const errEl = document.getElementById('error');
+      const diagramEl = document.getElementById('diagram');
+      const codeEl = document.getElementById('diagramCode');
+      const btn = document.getElementById('btn');
+
+      errEl.style.display = 'none';
+
+      if (!idea) {
+        errEl.textContent = 'Please enter your idea or description.';
+        errEl.style.display = 'block';
+        return;
+      }
+      if (!token) {
+        errEl.textContent = 'Please enter your Hugging Face API token.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+        diagramEl.innerHTML = '<p>Generating flowchart...</p>';
+      codeEl.innerHTML = '<p>Generating diagram code...</p>';
+
+      try {
+        const mermaidPrompt = `Create a Mermaid flowchart for:\n\n"${idea}"\n\nOutput only the Mermaid code:`;
+        const asciiPrompt = `Create an ASCII flowchart for:\n\n"${idea}"\n\nOutput only the ASCII diagram:`;
+
+        const [mermaidContent, asciiContent] = await Promise.all([
+          callAPI(token, mermaidPrompt, MERMAID_PROMPT),
+          callAPI(token, asciiPrompt, ASCII_PROMPT)
+        ]);
+
+        const mermaidCode = extractCode(mermaidContent);
+        const asciiCode = extractCode(asciiContent);
+
+        if (!mermaidCode) throw new Error('Could not generate flowchart.');
+
+        const diagramId = 'mermaid-' + Date.now();
+        const mermaidDiv = document.createElement('div');
+        mermaidDiv.className = 'mermaid';
+        mermaidDiv.id = diagramId;
+        mermaidDiv.textContent = mermaidCode;
+        diagramEl.innerHTML = '';
+        diagramEl.appendChild(mermaidDiv);
+
+        try {
+          await mermaid.run({ nodes: [mermaidDiv], suppressErrors: false });
+        } catch (mermaidErr) {
+          const fallbackPre = document.createElement('pre');
+          fallbackPre.className = 'diagram-output';
+          fallbackPre.textContent = mermaidCode;
+          diagramEl.innerHTML = '';
+          diagramEl.appendChild(fallbackPre);
+        }
+
+        const pre = document.createElement('pre');
+        pre.className = 'diagram-output';
+        pre.textContent = asciiCode || mermaidCode;
+        codeEl.innerHTML = '';
+        codeEl.appendChild(pre);
+      } catch (err) {
+        errEl.textContent = err.message || 'An error occurred.';
+        errEl.style.display = 'block';
+        diagramEl.innerHTML = '<p style="color:#94a3b8">Flowchart or architecture will appear here.</p>';
+        codeEl.innerHTML = '<p style="color:#94a3b8">Generated diagram code (ASCII) will appear here.</p>';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // Try to load token from URL param (e.g. ?token=hf_xxx)
+    const params = new URLSearchParams(location.search);
+    const urlToken = params.get('token');
+    if (urlToken) document.getElementById('token').value = urlToken;
+  </script>
+</body>
+</html>
