@@ -4,8 +4,8 @@ emoji: 📊
 colorFrom: indigo
 colorTo: slate
 sdk: gradio
-sdk_version: 5.22.0
-python_version: 3.10
+sdk_version: "5.22.0"
+python_version: "3.10"
 app_file: app.py
 pinned: false
 ---
