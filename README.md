@@ -2,7 +2,7 @@
 title: Idea to FlowChart
 emoji: 📊
 colorFrom: indigo
-colorTo: slate
+colorTo: blue
 sdk: gradio
 sdk_version: "5.22.0"
 python_version: "3.10"

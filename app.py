@@ -187,7 +187,7 @@ with gr.Blocks(
             )
             mermaid_code_output = gr.Code(
                 label="Mermaid Code (editable - paste above to regenerate)",
-                language="mermaid",
+                language=None,
                 lines=10,
                 visible=True,
             )
